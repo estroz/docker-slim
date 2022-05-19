@@ -12,6 +12,7 @@ import (
 	//"github.com/docker-slim/docker-slim/internal/app/sensor/monitors/fanotify"
 	"github.com/docker-slim/docker-slim/pkg/ipc/command"
 	"github.com/docker-slim/docker-slim/pkg/report"
+	"github.com/docker-slim/docker-slim/pkg/util/fsutil"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -24,6 +25,7 @@ func processReports(
 	ptReport *report.PtMonitorReport,
 	peReport *report.PeMonitorReport) {
 
+	processedFileSet := map[string]struct{}{}
 	fileCount := 0
 	for _, processFileMap := range fanReport.ProcessFiles {
 		fileCount += len(processFileMap)
@@ -32,22 +34,39 @@ func processReports(
 	for _, processFileMap := range fanReport.ProcessFiles {
 		for fpath := range processFileMap {
 			fileList = append(fileList, fpath)
+			processedFileSet[fpath] = struct{}{}
 		}
 	}
 
-	log.Debugf("processReports(): len(fanReport.ProcessFiles)=%v / fileCount=%v", len(fanReport.ProcessFiles), fileCount)
+	log.Debugf("processReports: len(fanReport.ProcessFiles)=%v / fileCount=%v", len(fanReport.ProcessFiles), fileCount)
+
+	if cmd.FileMatcherConfig != nil && cmd.FileMatcherConfig.Matcher != nil {
+		log.Debugf("processReports: running matcher for explicit includes %v", *cmd.Matcher)
+		matcher := cmd.FileMatcherConfig.Matcher
+		// Explicitly add paths not in fileList.
+		for origPath := range origPaths {
+			if _, ok := processedFileSet[origPath]; ok {
+				continue
+			}
+			if matcher.MatchInclude(origPath, fsutil.IsDir(origPath)) {
+				log.Debugf("processReports: adding explicitly included file %s", origPath)
+				fileList = append(fileList, origPath)
+			}
+		}
+	}
+
 	allFilesMap := findSymlinks(fileList, mountPoint)
 	saveResults(cmd, origPaths, allFilesMap, fanReport, ptReport, peReport)
 }
 
-func getProcessChildren(pid int, targetPidList map[int]bool, processChildrenMap map[int][]int) {
-	if children, ok := processChildrenMap[pid]; ok {
-		for _, cpid := range children {
-			targetPidList[cpid] = true
-			getProcessChildren(cpid, targetPidList, processChildrenMap)
-		}
-	}
-}
+// func getProcessChildren(pid int, targetPidList map[int]bool, processChildrenMap map[int][]int) {
+// 	if children, ok := processChildrenMap[pid]; ok {
+// 		for _, cpid := range children {
+// 			targetPidList[cpid] = true
+// 			getProcessChildren(cpid, targetPidList, processChildrenMap)
+// 		}
+// 	}
+// }
 
 /* use - TBD
 func findTargetAppProcesses(rootPidList []int, processChildrenMap map[int][]int) map[int]bool {

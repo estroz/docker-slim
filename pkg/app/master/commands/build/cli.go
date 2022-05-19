@@ -136,6 +136,7 @@ var CLI = &cli.Command{
 		cflag(FlagIncludeExeFile),
 		cflag(FlagIncludeExe),
 		cflag(FlagIncludeShell),
+		commands.Cflag(commands.FlagSlimKeep),
 		cflag(FlagIncludeCertAll),
 		cflag(FlagIncludeCertBundles),
 		cflag(FlagIncludeCertDirs),
@@ -442,120 +443,22 @@ var CLI = &cli.Command{
 			xc.Exit(-1)
 		}
 
-		excludePatterns := commands.ParsePaths(ctx.StringSlice(commands.FlagExcludePattern))
-
-		preservePaths := commands.ParsePaths(ctx.StringSlice(FlagPreservePath))
-		morePreservePaths, err := commands.ParsePathsFile(ctx.String(FlagPreservePathFile))
+		fileMatcherCfg, err := GetFileMatcherConfig(ctx, volumeMounts)
 		if err != nil {
-			xc.Out.Error("param.error.preserve.path.file", err.Error())
-			xc.Out.State("exited",
-				ovars{
-					"exit.code": -1,
-				})
+			xc.Out.Error("param.error.filematcherconfig.new", err.Error())
+			xc.Out.State("exited", ovars{
+				"exit.code": -1,
+			})
 			xc.Exit(-1)
-		} else {
-			for k, v := range morePreservePaths {
-				preservePaths[k] = v
-			}
+		}
+		if fileMatcherCfg.Matcher != nil {
+			xc.Out.Info("exec", ovars{
+				"message": "using .slimkeep matcher",
+			})
 		}
 
-		includePaths := commands.ParsePaths(ctx.StringSlice(FlagIncludePath))
-		moreIncludePaths, err := commands.ParsePathsFile(ctx.String(FlagIncludePathFile))
-		if err != nil {
-			xc.Out.Error("param.error.include.path.file", err.Error())
-			xc.Out.State("exited",
-				ovars{
-					"exit.code": -1,
-				})
-			xc.Exit(-1)
-		} else {
-			for k, v := range moreIncludePaths {
-				includePaths[k] = v
-			}
-		}
-
-		pathPerms := commands.ParsePaths(ctx.StringSlice(FlagPathPerms))
-		morePathPerms, err := commands.ParsePathsFile(ctx.String(FlagPathPermsFile))
-		if err != nil {
-			xc.Out.Error("param.error.path.perms.file", err.Error())
-			xc.Out.State("exited",
-				ovars{
-					"exit.code": -1,
-				})
-			xc.Exit(-1)
-		} else {
-			for k, v := range morePathPerms {
-				pathPerms[k] = v
-			}
-		}
-
-		includeBins := commands.ParsePaths(ctx.StringSlice(FlagIncludeBin))
-		moreIncludeBins, err := commands.ParsePathsFile(ctx.String(FlagIncludeBinFile))
-		if err != nil {
-			xc.Out.Error("param.error.include.bin.file", err.Error())
-			xc.Out.State("exited",
-				ovars{
-					"exit.code": -1,
-				})
-			xc.Exit(-1)
-		} else {
-			for k, v := range moreIncludeBins {
-				includeBins[k] = v
-			}
-		}
-
-		includeExes := commands.ParsePaths(ctx.StringSlice(FlagIncludeExe))
-		moreIncludeExes, err := commands.ParsePathsFile(ctx.String(FlagIncludeExeFile))
-		if err != nil {
-			xc.Out.Error("param.error.include.exe.file", err.Error())
-			xc.Out.State("exited",
-				ovars{
-					"exit.code": -1,
-				})
-			xc.Exit(-1)
-		} else {
-			for k, v := range moreIncludeExes {
-				includeExes[k] = v
-			}
-		}
-
-		doIncludeShell := ctx.Bool(FlagIncludeShell)
-
-		doIncludeCertAll := ctx.Bool(FlagIncludeCertAll)
-		doIncludeCertBundles := ctx.Bool(FlagIncludeCertBundles)
-		doIncludeCertDirs := ctx.Bool(FlagIncludeCertDirs)
-		doIncludeCertPKAll := ctx.Bool(FlagIncludeCertPKAll)
-		doIncludeCertPKDirs := ctx.Bool(FlagIncludeCertPKDirs)
-
-		doIncludeNew := ctx.Bool(FlagIncludeNew)
-
-		doUseLocalMounts := ctx.Bool(commands.FlagUseLocalMounts)
 		doUseSensorVolume := ctx.String(commands.FlagUseSensorVolume)
-
-		doKeepTmpArtifacts := ctx.Bool(FlagKeepTmpArtifacts)
-
-		doIncludeAppNuxtDir := ctx.Bool(FlagIncludeAppNuxtDir)
-		doIncludeAppNuxtBuildDir := ctx.Bool(FlagIncludeAppNuxtBuildDir)
-		doIncludeAppNuxtDistDir := ctx.Bool(FlagIncludeAppNuxtDistDir)
-		doIncludeAppNuxtStaticDir := ctx.Bool(FlagIncludeAppNuxtStaticDir)
-		doIncludeAppNuxtNodeModulesDir := ctx.Bool(FlagIncludeAppNuxtNodeModulesDir)
-
-		doIncludeAppNextDir := ctx.Bool(FlagIncludeAppNextDir)
-		doIncludeAppNextBuildDir := ctx.Bool(FlagIncludeAppNextBuildDir)
-		doIncludeAppNextDistDir := ctx.Bool(FlagIncludeAppNextDistDir)
-		doIncludeAppNextStaticDir := ctx.Bool(FlagIncludeAppNextStaticDir)
-		doIncludeAppNextNodeModulesDir := ctx.Bool(FlagIncludeAppNextNodeModulesDir)
-
-		includeNodePackage := ctx.StringSlice(FlagIncludeNodePackage)
-
-		doExcludeMounts := ctx.Bool(commands.FlagExcludeMounts)
-		if doExcludeMounts {
-			for mpath := range volumeMounts {
-				excludePatterns[mpath] = nil
-				mpattern := fmt.Sprintf("%s/**", mpath)
-				excludePatterns[mpattern] = nil
-			}
-		}
+		doUseLocalMounts := ctx.Bool(commands.FlagUseLocalMounts)
 
 		continueAfter, err := commands.GetContinueAfter(ctx)
 		if err != nil {
@@ -664,17 +567,7 @@ var CLI = &cli.Command{
 			gparams,
 			targetRef,
 			doPull,
-			doIncludeAppNuxtDir,
-			doIncludeAppNuxtBuildDir,
-			doIncludeAppNuxtDistDir,
-			doIncludeAppNuxtStaticDir,
-			doIncludeAppNuxtNodeModulesDir,
-			doIncludeAppNextDir,
-			doIncludeAppNextBuildDir,
-			doIncludeAppNextDistDir,
-			doIncludeAppNextStaticDir,
-			doIncludeAppNextNodeModulesDir,
-			includeNodePackage,
+			fileMatcherCfg,
 			dockerConfigPath,
 			registryAccount,
 			registrySecret,
@@ -731,22 +624,8 @@ var CLI = &cli.Command{
 			ctx.StringSlice(commands.FlagContainerDNSSearch),
 			volumeMounts,
 			doKeepPerms,
-			pathPerms,
-			excludePatterns,
-			preservePaths,
-			includePaths,
-			includeBins,
-			includeExes,
-			doIncludeShell,
-			doIncludeCertAll,
-			doIncludeCertBundles,
-			doIncludeCertDirs,
-			doIncludeCertPKAll,
-			doIncludeCertPKDirs,
-			doIncludeNew,
 			doUseLocalMounts,
 			doUseSensorVolume,
-			doKeepTmpArtifacts,
 			continueAfter,
 			execCmd,
 			string(execFileCmd),

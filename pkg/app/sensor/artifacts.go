@@ -19,6 +19,7 @@ import (
 
 	"github.com/armon/go-radix"
 	"github.com/bmatcuk/doublestar/v3"
+
 	//"github.com/robertkrimen/otto"
 	log "github.com/sirupsen/logrus"
 
@@ -34,7 +35,6 @@ import (
 
 const (
 	pidFileSuffix          = ".pid"
-	varRunDir              = "/var/run/"
 	fileTypeCmdName        = "file"
 	defaultReportName      = "creport.json"
 	defaultArtifactDirName = "/opt/dockerslim/artifacts"
@@ -56,16 +56,9 @@ const (
 
 // Ruby related consts
 const (
-	rbBinName           = "/ruby"
-	rbIrbBinName        = "/irb"
-	rbGemBinName        = "/gem"
-	rbBundleBinName     = "/bundle"
-	rbRbenvBinName      = "/rbenv"
 	rbSrcFileExt        = ".rb"
 	rbGemSpecExt        = ".gemspec"
 	rbGemsSubDir        = "/gems/"
-	rbGemfile           = "Gemfile"
-	rbGemfileLockFile   = "Gemfile.lock"
 	rbDefaultSpecSubDir = "/specifications/default/"
 	rbSpecSubDir        = "/specifications/"
 	rgExtSibDir         = "extensions"
@@ -74,44 +67,19 @@ const (
 
 // Python related consts
 const (
-	pyBinName            = "/python"
-	py2BinName           = "/python2"
-	py3BinName           = "/python3"
-	pyPipBinName         = "/pip"
-	pyPip2BinName        = "/pip2"
-	pyPip3BinName        = "/pip3"
-	pyPoetryBinName      = "/poetry"
-	pyCondaBinName       = "/conda"
-	pyPipEnvBinName      = "/pipenv"
-	pyEasyInstallBinName = "/easy_install"
-	pyPipxBinName        = "/pipx"
-	pyVirtEnvBinName     = "/virtualenv"
-	pySrcFileExt         = ".py"
-	pycExt               = ".pyc"
-	pyoExt               = ".pyo"
-	pycacheDir           = "/__pycache__/"
-	pycache              = "__pycache__"
-	pyReqsFile           = "/requirements.txt"
-	pyPoetryProjectFile  = "/pyproject.toml"
-	pyPipEnvProjectFile  = "/Pipfile"
-	pyPipEnvLockFile     = "/Pipfile.lock"
-	pyDistPkgDir         = "/dist-packages/"
-	pySitePkgDir         = "/site-packages/"
+	pySrcFileExt = ".py"
+	pycExt       = ".pyc"
+	pyoExt       = ".pyo"
+	pycacheDir   = "/__pycache__/"
+	pycache      = "__pycache__"
+	pyDistPkgDir = "/dist-packages/"
+	pySitePkgDir = "/site-packages/"
 )
 
 // Node.js related consts
 const (
-	nodeBinName           = "/node"
-	nodeNpmBinName        = "/npm"
-	nodeYarnBinName       = "/yarn"
-	nodePnpmBinName       = "/pnpm"
-	nodeRushBinName       = "/rush"
-	nodeLernaBinName      = "/lerna"
 	nodeSrcFileExt        = ".js"
 	nodePackageFile       = "package.json"
-	nodePackageLockFile   = "package-lock.json"
-	nodeNpmShrinkwrapFile = "npm-shrinkwrap.json"
-	nodeYarnLockFile      = "yarn.lock"
 	nodePackageDirPath    = "/node_modules/"
 	nodePackageDirName    = "node_modules"
 	nodeNPMNodeGypPackage = "/npm/node_modules/node-gyp/package.json"
@@ -121,9 +89,6 @@ const (
 // nuxt.js related consts
 const (
 	nuxtConfigFile      = "nuxt.config.js"
-	nuxtBuildDirKey     = "buildDir"
-	nuxtSrcDirKey       = "srcDir" //defaults to rootDir
-	nuxtDistDirKey      = "dir"    //in 'generate'
 	nuxtDefaultDistDir  = "dist"
 	nuxtDefaultBuildDir = ".nuxt"
 	nuxtStaticDir       = "static"
@@ -131,14 +96,11 @@ const (
 
 // next.js related consts
 const (
-	nextConfigFile                = "next.config.js"
-	nextConfigFileAlt             = "next.config.mjs"
-	nextDefaultBuildDir           = ".next"
-	nextDefaultBuildStandaloneDir = ".next/standalone"
-	nextDefaultBuildStaticDir     = ".next/static"
-	nextStaticDir                 = "public"
-	nextDefaultStaticSpaDir       = "out"
-	nextDefaultStaticSpaDirPath   = "/out/_next/"
+	nextConfigFile          = "next.config.js"
+	nextConfigFileAlt       = "next.config.mjs"
+	nextDefaultBuildDir     = ".next"
+	nextStaticDir           = "public"
+	nextDefaultStaticSpaDir = "out"
 )
 
 type NodePackageConfigSimple struct {
@@ -169,7 +131,7 @@ func findFileTypeCmd() {
 	log.Debugf("findFileTypeCmd - cmd found: %v", fileTypeCmd)
 }
 
-func prepareEnv(storeLocation string, cmd *command.StartMonitor) {
+func prepareEnv(cmd *command.StartMonitor, wdir, storeLocation string) {
 	log.Debug("sensor.app.prepareEnv()")
 
 	dstRootPath := filepath.Join(storeLocation, filesDirName)
@@ -177,18 +139,26 @@ func prepareEnv(storeLocation string, cmd *command.StartMonitor) {
 	err := os.MkdirAll(dstRootPath, 0777)
 	errutil.FailOn(err)
 
-	if cmd != nil && len(cmd.Preserves) > 0 {
-		log.Debugf("sensor.app.prepareEnv(): preserving paths - %d", len(cmd.Preserves))
+	if cmd == nil || cmd.FileMatcherConfig == nil {
+		return
+	}
+
+	fcfg := cmd.FileMatcherConfig
+
+	if len(fcfg.PreservePaths) > 0 {
+
+		preserves := fcfg.PreservePaths
+		log.Debugf("sensor.app.prepareEnv(): preserving paths - %d", len(preserves))
 
 		preservedDirPath := filepath.Join(storeLocation, preservedDirName)
 		log.Debugf("sensor.app.prepareEnv - prep preserved artifacts root dir - '%s'", preservedDirPath)
 		err = os.MkdirAll(preservedDirPath, 0777)
 		errutil.FailOn(err)
 
-		preservePaths := preparePaths(getKeys(cmd.Preserves))
+		preservePaths := preparePaths(getKeys(preserves))
 		log.Debugf("sensor.app.prepareEnv - preservePaths(%v): %+v", len(preservePaths), preservePaths)
 
-		newPerms := getRecordsWithPerms(cmd.Preserves)
+		newPerms := getRecordsWithPerms(preserves)
 		log.Debugf("sensor.app.prepareEnv - newPerms(%v): %+v", len(newPerms), newPerms)
 
 		for inPath, isDir := range preservePaths {
@@ -229,6 +199,7 @@ func saveResults(
 	fanMonReport *report.FanMonitorReport,
 	ptMonReport *report.PtMonitorReport,
 	peReport *report.PeMonitorReport) {
+
 	log.Debugf("saveResults(%v,...)", len(fileNames))
 
 	artifactDirName := defaultArtifactDirName
@@ -469,7 +440,7 @@ func (p *artifactStore) prepareArtifacts() {
 
 			bprops.Flags = p.getArtifactFlags(bpath)
 
-			fsType := "unknown"
+			var fsType string
 			switch {
 			case bpathFileInfo.Mode().IsRegular():
 				fsType = "file"
@@ -517,7 +488,7 @@ func (p *artifactStore) resolveLinks() {
 
 		fileInfo, err := os.Lstat(fpath)
 		if err != nil {
-			log.Debugf("resolveLinks.files - os.Lstat(%s) error: ", fpath, err)
+			log.Debugf("resolveLinks.files - os.Lstat(%s) error => %s", fpath, err)
 			continue
 		}
 
@@ -528,7 +499,7 @@ func (p *artifactStore) resolveLinks() {
 
 		linkRef, err := os.Readlink(fpath)
 		if err != nil {
-			log.Debugf("resolveLinks.files - os.Readlink(%s) error: ", fpath, err)
+			log.Debugf("resolveLinks.files - os.Readlink(%s) error => %s", fpath, err)
 			continue
 		}
 
@@ -781,7 +752,9 @@ func (p *artifactStore) saveCertsData() {
 		return out
 	}
 
-	if p.cmd.IncludeCertAll {
+	fcfg := p.cmd.FileMatcherConfig
+
+	if fcfg.IncludeCertAll {
 		copyCertFiles(certdiscover.CertFileList())
 		copyCertFiles(certdiscover.CACertFileList())
 		//TODO:
@@ -809,7 +782,7 @@ func (p *artifactStore) saveCertsData() {
 		}
 	}
 
-	if !p.cmd.IncludeCertAll && p.cmd.IncludeCertBundles {
+	if !fcfg.IncludeCertAll && fcfg.IncludeCertBundles {
 		copyCertFiles(certdiscover.CertFileList())
 		copyCertFiles(certdiscover.CACertFileList())
 
@@ -829,13 +802,13 @@ func (p *artifactStore) saveCertsData() {
 		}
 	}
 
-	if !p.cmd.IncludeCertAll && p.cmd.IncludeCertDirs {
+	if !fcfg.IncludeCertAll && fcfg.IncludeCertDirs {
 		copyDirs(certdiscover.CertDirList(), true)
 		copyDirs(certdiscover.CACertDirList(), true)
 		copyDirs(certdiscover.CertExtraDirList(), false)
 	}
 
-	if p.cmd.IncludeCertPKAll {
+	if fcfg.IncludeCertPKAll {
 		copyCertFiles(certdiscover.CACertPKFileList())
 		//TODO:
 		//need to 'walk' these directories detecting cert PK files
@@ -844,34 +817,43 @@ func (p *artifactStore) saveCertsData() {
 		copyDirs(certdiscover.CACertPKDirList(), true)
 	}
 
-	if !p.cmd.IncludeCertPKAll && p.cmd.IncludeCertPKDirs {
+	if !fcfg.IncludeCertPKAll && fcfg.IncludeCertPKDirs {
 		copyDirs(certdiscover.CertPKDirList(), true)
 		copyDirs(certdiscover.CACertPKDirList(), true)
 	}
 }
 
 func (p *artifactStore) saveArtifacts() {
+	if p.cmd.FileMatcherConfig.Matcher == nil {
+		p.saveArtifactsLegacy()
+	} else {
+		p.saveArtifactsMatcher(os.DirFS("/"))
+	}
+}
+
+func (p *artifactStore) saveArtifactsLegacy() {
 	var includePaths map[string]bool
 	var newPerms map[string]*fsutil.AccessInfo
 
 	syscall.Umask(0)
 
-	excludePatterns := p.cmd.Excludes
+	fcfg := p.cmd.FileMatcherConfig
+	excludePatterns := getKeys(fcfg.ExcludePatterns)
 	excludePatterns = append(excludePatterns, "/opt/dockerslim")
 	excludePatterns = append(excludePatterns, "/opt/dockerslim/**")
 	log.Debugf("saveArtifacts - excludePatterns(%v): %+v", len(excludePatterns), excludePatterns)
 
-	includePaths = preparePaths(getKeys(p.cmd.Includes))
+	includePaths = preparePaths(getKeys(fcfg.IncludePaths))
 	log.Debugf("saveArtifacts - includePaths(%v): %+v", len(includePaths), includePaths)
 
 	if includePaths == nil {
 		includePaths = make(map[string]bool)
 	}
 
-	newPerms = getRecordsWithPerms(p.cmd.Includes)
+	newPerms = getRecordsWithPerms(fcfg.IncludePaths)
 	log.Debugf("saveArtifacts - newPerms(%v): %+v", len(newPerms), newPerms)
 
-	for pk, pv := range p.cmd.Perms {
+	for pk, pv := range fcfg.PathPerms {
 		newPerms[pk] = pv
 	}
 	log.Debugf("saveArtifacts - merged newPerms(%v): %+v", len(newPerms), newPerms)
@@ -1035,15 +1017,15 @@ copyFiles:
 		filePath := fmt.Sprintf("%s/files%s", p.storeLocation, fileName)
 		p.detectAppStack(fileName)
 
-		if p.cmd.IncludeAppNuxtDir ||
-			p.cmd.IncludeAppNuxtBuildDir ||
-			p.cmd.IncludeAppNuxtDistDir ||
-			p.cmd.IncludeAppNuxtStaticDir ||
-			p.cmd.IncludeAppNuxtNodeModulesDir {
+		if fcfg.IncludeAppNuxtDir ||
+			fcfg.IncludeAppNuxtBuildDir ||
+			fcfg.IncludeAppNuxtDistDir ||
+			fcfg.IncludeAppNuxtStaticDir ||
+			fcfg.IncludeAppNuxtNodeModulesDir {
 			if isNuxtConfigFile(fileName) {
 				nuxtConfig, err := getNuxtConfig(fileName)
 				if err != nil {
-					log.Warn("saveArtifacts: failed to get nuxt config: %v", err)
+					log.Warnf("saveArtifacts: failed to get nuxt config: %v", err)
 					continue
 				}
 				if nuxtConfig == nil {
@@ -1056,15 +1038,15 @@ copyFiles:
 				//cust app path is defined with the "srcDir" field in the Nuxt config file
 				nuxtAppDir := filepath.Dir(fileName)
 				nuxtAppDirPrefix := fmt.Sprintf("%s/", nuxtAppDir)
-				if p.cmd.IncludeAppNuxtDir {
+				if fcfg.IncludeAppNuxtDir {
 					includePaths[nuxtAppDir] = true
 					log.Tracef("saveArtifacts[nuxt] - including app dir - %s", nuxtAppDir)
 				}
 
-				if p.cmd.IncludeAppNuxtStaticDir {
+				if fcfg.IncludeAppNuxtStaticDir {
 					srcPath := filepath.Join(nuxtAppDir, nuxtStaticDir)
 					if fsutil.DirExists(srcPath) {
-						if p.cmd.IncludeAppNuxtDir && strings.HasPrefix(srcPath, nuxtAppDirPrefix) {
+						if fcfg.IncludeAppNuxtDir && strings.HasPrefix(srcPath, nuxtAppDirPrefix) {
 							log.Debugf("saveArtifacts[nuxt] - static dir is already included (%s)", srcPath)
 						} else {
 							includePaths[srcPath] = true
@@ -1075,7 +1057,7 @@ copyFiles:
 					}
 				}
 
-				if p.cmd.IncludeAppNuxtBuildDir && nuxtConfig.Build != "" {
+				if fcfg.IncludeAppNuxtBuildDir && nuxtConfig.Build != "" {
 					basePath := nuxtAppDir
 					if strings.HasPrefix(nuxtConfig.Build, "/") {
 						basePath = ""
@@ -1083,7 +1065,7 @@ copyFiles:
 
 					srcPath := filepath.Join(basePath, nuxtConfig.Build)
 					if fsutil.DirExists(srcPath) {
-						if p.cmd.IncludeAppNuxtDir && strings.HasPrefix(srcPath, nuxtAppDirPrefix) {
+						if fcfg.IncludeAppNuxtDir && strings.HasPrefix(srcPath, nuxtAppDirPrefix) {
 							log.Debugf("saveArtifacts[nuxt] - build dir is already included (%s)", srcPath)
 						} else {
 							includePaths[srcPath] = true
@@ -1094,7 +1076,7 @@ copyFiles:
 					}
 				}
 
-				if p.cmd.IncludeAppNuxtDistDir && nuxtConfig.Dist != "" {
+				if fcfg.IncludeAppNuxtDistDir && nuxtConfig.Dist != "" {
 					basePath := nuxtAppDir
 					if strings.HasPrefix(nuxtConfig.Dist, "/") {
 						basePath = ""
@@ -1102,7 +1084,7 @@ copyFiles:
 
 					srcPath := filepath.Join(basePath, nuxtConfig.Dist)
 					if fsutil.DirExists(srcPath) {
-						if p.cmd.IncludeAppNuxtDir && strings.HasPrefix(srcPath, nuxtAppDirPrefix) {
+						if fcfg.IncludeAppNuxtDir && strings.HasPrefix(srcPath, nuxtAppDirPrefix) {
 							log.Debugf("saveArtifacts[nuxt] - dist dir is already included (%s)", srcPath)
 						} else {
 							includePaths[srcPath] = true
@@ -1113,10 +1095,10 @@ copyFiles:
 					}
 				}
 
-				if p.cmd.IncludeAppNuxtNodeModulesDir {
+				if fcfg.IncludeAppNuxtNodeModulesDir {
 					srcPath := filepath.Join(nuxtAppDir, nodePackageDirName)
 					if fsutil.DirExists(srcPath) {
-						if p.cmd.IncludeAppNuxtDir && strings.HasPrefix(srcPath, nuxtAppDirPrefix) {
+						if fcfg.IncludeAppNuxtDir && strings.HasPrefix(srcPath, nuxtAppDirPrefix) {
 							log.Debugf("saveArtifacts[nuxt] - node_modules dir is already included (%s)", srcPath)
 						} else {
 							includePaths[srcPath] = true
@@ -1131,23 +1113,23 @@ copyFiles:
 			}
 		}
 
-		if p.cmd.IncludeAppNextDir ||
-			p.cmd.IncludeAppNextBuildDir ||
-			p.cmd.IncludeAppNextDistDir ||
-			p.cmd.IncludeAppNextStaticDir ||
-			p.cmd.IncludeAppNextNodeModulesDir {
+		if fcfg.IncludeAppNextDir ||
+			fcfg.IncludeAppNextBuildDir ||
+			fcfg.IncludeAppNextDistDir ||
+			fcfg.IncludeAppNextStaticDir ||
+			fcfg.IncludeAppNextNodeModulesDir {
 			if isNextConfigFile(fileName) {
 				nextAppDir := filepath.Dir(fileName)
 				nextAppDirPrefix := fmt.Sprintf("%s/", nextAppDir)
-				if p.cmd.IncludeAppNextDir {
+				if fcfg.IncludeAppNextDir {
 					includePaths[nextAppDir] = true
 					log.Tracef("saveArtifacts[next] - including app dir - %s", nextAppDir)
 				}
 
-				if p.cmd.IncludeAppNextStaticDir {
+				if fcfg.IncludeAppNextStaticDir {
 					srcPath := filepath.Join(nextAppDir, nextStaticDir)
 					if fsutil.DirExists(srcPath) {
-						if p.cmd.IncludeAppNextDir && strings.HasPrefix(srcPath, nextAppDirPrefix) {
+						if fcfg.IncludeAppNextDir && strings.HasPrefix(srcPath, nextAppDirPrefix) {
 							log.Debugf("saveArtifacts[next] - static public dir is already included (%s)", srcPath)
 						} else {
 							includePaths[srcPath] = true
@@ -1158,10 +1140,10 @@ copyFiles:
 					}
 				}
 
-				if p.cmd.IncludeAppNextBuildDir {
+				if fcfg.IncludeAppNextBuildDir {
 					srcPath := filepath.Join(nextAppDir, nextDefaultBuildDir)
 					if fsutil.DirExists(srcPath) {
-						if p.cmd.IncludeAppNextDir && strings.HasPrefix(srcPath, nextAppDirPrefix) {
+						if fcfg.IncludeAppNextDir && strings.HasPrefix(srcPath, nextAppDirPrefix) {
 							log.Debugf("saveArtifacts[next] - build dir is already included (%s)", srcPath)
 						} else {
 							includePaths[srcPath] = true
@@ -1172,10 +1154,10 @@ copyFiles:
 					}
 				}
 
-				if p.cmd.IncludeAppNextDistDir {
+				if fcfg.IncludeAppNextDistDir {
 					srcPath := filepath.Join(nextAppDir, nextDefaultStaticSpaDir)
 					if fsutil.DirExists(srcPath) {
-						if p.cmd.IncludeAppNextDir && strings.HasPrefix(srcPath, nextAppDirPrefix) {
+						if fcfg.IncludeAppNextDir && strings.HasPrefix(srcPath, nextAppDirPrefix) {
 							log.Debugf("saveArtifacts[next] - dist dir is already included (%s)", srcPath)
 						} else {
 							includePaths[srcPath] = true
@@ -1186,10 +1168,10 @@ copyFiles:
 					}
 				}
 
-				if p.cmd.IncludeAppNextNodeModulesDir {
+				if fcfg.IncludeAppNextNodeModulesDir {
 					srcPath := filepath.Join(nextAppDir, nodePackageDirName)
 					if fsutil.DirExists(srcPath) {
-						if p.cmd.IncludeAppNextDir && strings.HasPrefix(srcPath, nextAppDirPrefix) {
+						if fcfg.IncludeAppNextDir && strings.HasPrefix(srcPath, nextAppDirPrefix) {
 							log.Debugf("saveArtifacts[next] - node_modules dir is already included (%s)", srcPath)
 						} else {
 							includePaths[srcPath] = true
@@ -1217,10 +1199,10 @@ copyFiles:
 				log.Warn("saveArtifacts - error ensuring node package files => ", err)
 			}
 
-			if len(p.cmd.IncludeNodePackages) > 0 {
+			if len(fcfg.IncludeNodePackages) > 0 {
 				nodePackageInfo, err := getNodePackageFileData(fileName)
 				if err == nil && nodePackageInfo != nil {
-					for _, pkgName := range p.cmd.IncludeNodePackages {
+					for _, pkgName := range fcfg.IncludeNodePackages {
 						//note: use a better match lookup and include package version match later (":" as separator)
 						if pkgName != "" && pkgName == nodePackageInfo.Name {
 							nodeAppDir := filepath.Dir(fileName)
@@ -1329,7 +1311,7 @@ copyIncludes:
 		}
 	}
 
-	for _, exePath := range p.cmd.IncludeExes {
+	for exePath := range fcfg.IncludeExes {
 		exeArtifacts, err := sodeps.AllExeDependencies(exePath, true)
 		if err != nil {
 			log.Warnf("saveArtifacts - %v - error getting exe artifacts => %v\n", exePath, err)
@@ -1347,7 +1329,7 @@ copyIncludes:
 		}
 	}
 
-	for _, binPath := range p.cmd.IncludeBins {
+	for binPath := range fcfg.IncludeBins {
 		binArtifacts, err := sodeps.AllDependencies(binPath)
 		if err != nil {
 			log.Warnf("saveArtifacts - %v - error getting bin artifacts => %v\n", binPath, err)
@@ -1365,7 +1347,7 @@ copyIncludes:
 		}
 	}
 
-	if p.cmd.IncludeShell {
+	if fcfg.IncludeShell {
 		shellArtifacts, err := shellDependencies()
 		if err == nil {
 			log.Debugf("saveArtifacts - include shell: artifacts (%d):\n%v\n",
@@ -1425,13 +1407,13 @@ copyIncludes:
 		}
 	}
 
-	if len(p.cmd.Preserves) > 0 {
-		log.Debug("saveArtifacts: restoring preserved paths - %d", len(p.cmd.Preserves))
+	if len(fcfg.PreservePaths) > 0 {
+		log.Debugf("saveArtifacts: restoring preserved paths - %d", len(fcfg.PreservePaths))
 
 		preservedDirPath := filepath.Join(p.storeLocation, preservedDirName)
 		filesDirPath := filepath.Join(p.storeLocation, filesDirName)
 		if fsutil.Exists(preservedDirPath) {
-			preservePaths := preparePaths(getKeys(p.cmd.Preserves))
+			preservePaths := preparePaths(getKeys(fcfg.PreservePaths))
 			for inPath, isDir := range preservePaths {
 				srcPath := fmt.Sprintf("%s%s", preservedDirPath, inPath)
 				dstPath := fmt.Sprintf("%s%s", filesDirPath, inPath)
@@ -2120,29 +2102,29 @@ func ngxEnsure(prefix string) {
 	}
 }
 
-var shellNames = []string{
-	"bash",
-	"sh",
+var shellNames = map[string]struct{}{
+	"bash": {},
+	"sh":   {},
 }
 
-var shellCommands = []string{
-	"ls",
-	"pwd",
-	"cd",
-	"ps",
-	"head",
-	"tail",
-	"cat",
-	"more",
-	"find",
-	"grep",
-	"awk",
-	"env",
+var shellCommands = map[string]struct{}{
+	"ls":   {},
+	"pwd":  {},
+	"cd":   {},
+	"ps":   {},
+	"head": {},
+	"tail": {},
+	"cat":  {},
+	"more": {},
+	"find": {},
+	"grep": {},
+	"awk":  {},
+	"env":  {},
 }
 
 func shellDependencies() ([]string, error) {
 	var allDeps []string
-	for _, name := range shellNames {
+	for name := range shellNames {
 		shellPath, err := exec.LookPath(name)
 		if err != nil {
 			log.Debugf("shellDependencies - checking '%s' shell (not found: %s)", name, err)
@@ -2164,7 +2146,7 @@ func shellDependencies() ([]string, error) {
 		return nil, nil
 	}
 
-	for _, name := range shellCommands {
+	for name := range shellCommands {
 		cmdPath, err := exec.LookPath(name)
 		if err != nil {
 			log.Debugf("shellDependencies - checking '%s' cmd (not found: %s)", name, err)

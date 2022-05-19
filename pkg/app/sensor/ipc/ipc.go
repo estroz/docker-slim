@@ -71,12 +71,14 @@ func (s *Server) OnRequest(data []byte) ([]byte, error) {
 		Status: command.ResponseStatusError,
 	}
 
-	if cmd, err := command.Decode(data); err == nil {
-		s.cmdChan <- cmd
-		resp.Status = command.ResponseStatusOk
-	} else {
+	cmd, err := command.Decode(data)
+	if err != nil {
 		log.Errorf("ipc.Server.OnRequest: error decoding request = %v", err)
+		return nil, err
 	}
+
+	s.cmdChan <- cmd
+	resp.Status = command.ResponseStatusOk
 
 	respData, err := json.Marshal(&resp)
 	if err != nil {

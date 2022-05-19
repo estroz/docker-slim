@@ -16,6 +16,7 @@ import (
 	"github.com/docker-slim/docker-slim/pkg/app/master/commands/debug"
 	"github.com/docker-slim/docker-slim/pkg/app/master/commands/dockerclipm"
 	"github.com/docker-slim/docker-slim/pkg/app/master/commands/edit"
+	genslimkeep "github.com/docker-slim/docker-slim/pkg/app/master/commands/gen-slimkeep"
 	"github.com/docker-slim/docker-slim/pkg/app/master/commands/help"
 	"github.com/docker-slim/docker-slim/pkg/app/master/commands/install"
 	"github.com/docker-slim/docker-slim/pkg/app/master/commands/lint"
@@ -60,6 +61,19 @@ func registerCommands() {
 	debug.RegisterCommand()
 	containerize.RegisterCommand()
 	dockerclipm.RegisterCommand()
+	genslimkeep.RegisterCommand()
+}
+
+var skipMsgCmds = map[string]struct{}{
+	genslimkeep.CLI.Name:       {},
+	genslimkeep.CLI.Aliases[0]: {},
+}
+
+func isSkipMsgCmd(ctx *cli.Context) bool {
+	lin := ctx.Lineage()
+	thisCmdCtx := lin[0]
+	_, skip := skipMsgCmds[thisCmdCtx.Args().First()]
+	return skip
 }
 
 func newCLI() *cli.App {
@@ -71,7 +85,7 @@ func newCLI() *cli.App {
 	cliApp.Usage = AppUsage
 	cliApp.CommandNotFound = func(ctx *cli.Context, command string) {
 		fmt.Printf("unknown command - %v \n\n", command)
-		cli.ShowAppHelp(ctx)
+		_ = cli.ShowAppHelp(ctx)
 	}
 
 	cliApp.Flags = commands.GlobalFlags()
@@ -148,7 +162,8 @@ func newCLI() *cli.App {
 		log.Debugf("sysinfo => %#v", system.GetSystemInfo())
 
 		//tmp hack
-		if !strings.Contains(strings.Join(os.Args, " "), " docker-cli-plugin-metadata") {
+		hasDPMeta := strings.Contains(strings.Join(os.Args, " "), " docker-cli-plugin-metadata")
+		if !(hasDPMeta || isSkipMsgCmd(ctx)) {
 			app.ShowCommunityInfo()
 		}
 		return nil
@@ -156,7 +171,8 @@ func newCLI() *cli.App {
 
 	cliApp.After = func(ctx *cli.Context) error {
 		//tmp hack
-		if !strings.Contains(strings.Join(os.Args, " "), " docker-cli-plugin-metadata") {
+		hasDPMeta := strings.Contains(strings.Join(os.Args, " "), " docker-cli-plugin-metadata")
+		if !(hasDPMeta || isSkipMsgCmd(ctx)) {
 			app.ShowCommunityInfo()
 		}
 		return nil

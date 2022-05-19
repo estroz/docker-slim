@@ -84,79 +84,56 @@ type NetNameInfo struct {
 
 // Inspector is a container execution inspector
 type Inspector struct {
-	ContainerInfo                  *dockerapi.Container
-	ContainerPortsInfo             string
-	ContainerPortList              string
-	AvailablePorts                 map[dockerapi.Port]dockerapi.PortBinding // Ports found to be available for probing.
-	ContainerID                    string
-	ContainerName                  string
-	FatContainerCmd                []string
-	LocalVolumePath                string
-	DoUseLocalMounts               bool
-	DoIncludeAppNuxtDir            bool
-	DoIncludeAppNuxtBuildDir       bool
-	DoIncludeAppNuxtDistDir        bool
-	DoIncludeAppNuxtStaticDir      bool
-	DoIncludeAppNuxtNodeModulesDir bool
-	DoIncludeAppNextDir            bool
-	DoIncludeAppNextBuildDir       bool
-	DoIncludeAppNextDistDir        bool
-	DoIncludeAppNextStaticDir      bool
-	DoIncludeAppNextNodeModulesDir bool
-	SensorVolumeName               string
-	DoKeepTmpArtifacts             bool
-	StatePath                      string
-	CmdPort                        dockerapi.Port
-	EvtPort                        dockerapi.Port
-	DockerHostIP                   string
-	ImageInspector                 *image.Inspector
-	APIClient                      *dockerapi.Client
-	Overrides                      *config.ContainerOverrides
-	ExplicitVolumeMounts           map[string]config.VolumeMount
-	BaseMounts                     []dockerapi.HostMount
-	BaseVolumesFrom                []string
-	DoPublishExposedPorts          bool
-	HasClassicLinks                bool
-	Links                          []string
-	EtcHostsMaps                   []string
-	DNSServers                     []string
-	DNSSearchDomains               []string
-	DoShowContainerLogs            bool
-	RunTargetAsUser                bool
-	KeepPerms                      bool
-	PathPerms                      map[string]*fsutil.AccessInfo
-	ExcludePatterns                map[string]*fsutil.AccessInfo
-	PreservePaths                  map[string]*fsutil.AccessInfo
-	IncludePaths                   map[string]*fsutil.AccessInfo
-	IncludeBins                    map[string]*fsutil.AccessInfo
-	IncludeExes                    map[string]*fsutil.AccessInfo
-	IncludeNodePackages            []string
-	DoIncludeShell                 bool
-	DoIncludeCertAll               bool
-	DoIncludeCertBundles           bool
-	DoIncludeCertDirs              bool
-	DoIncludeCertPKAll             bool
-	DoIncludeCertPKDirs            bool
-	DoIncludeNew                   bool
-	SelectedNetworks               map[string]NetNameInfo
-	DoDebug                        bool
-	LogLevel                       string
-	LogFormat                      string
-	PrintState                     bool
-	PrintPrefix                    string
-	InContainer                    bool
-	RTASourcePT                    bool
-	SensorIPCEndpoint              string
-	SensorIPCMode                  string
-	TargetHost                     string
-	dockerEventCh                  chan *dockerapi.APIEvents
-	dockerEventStopCh              chan struct{}
-	isDone                         aflag.Type
-	ipcClient                      *ipc.Client
-	logger                         *log.Entry
-	xc                             *app.ExecutionContext
-	crOpts                         *config.ContainerRunOptions
-	portBindings                   map[dockerapi.Port][]dockerapi.PortBinding
+	ContainerInfo         *dockerapi.Container
+	ContainerPortsInfo    string
+	ContainerPortList     string
+	AvailablePorts        map[dockerapi.Port]dockerapi.PortBinding // Ports found to be available for probing.
+	ContainerID           string
+	ContainerName         string
+	FatContainerCmd       []string
+	LocalVolumePath       string
+	FileMatcherConfig     *config.FileMatcherConfig
+	SensorVolumeName      string
+	DoUseLocalMounts      bool
+	StatePath             string
+	CmdPort               dockerapi.Port
+	EvtPort               dockerapi.Port
+	DockerHostIP          string
+	ImageInspector        *image.Inspector
+	APIClient             *dockerapi.Client
+	Overrides             *config.ContainerOverrides
+	ExplicitVolumeMounts  map[string]config.VolumeMount
+	BaseMounts            []dockerapi.HostMount
+	BaseVolumesFrom       []string
+	DoPublishExposedPorts bool
+	HasClassicLinks       bool
+	Links                 []string
+	EtcHostsMaps          []string
+	DNSServers            []string
+	DNSSearchDomains      []string
+	DoShowContainerLogs   bool
+	RunTargetAsUser       bool
+	KeepPerms             bool
+	SelectedNetworks      map[string]NetNameInfo
+	DoDebug               bool
+	LogLevel              string
+	LogFormat             string
+	PrintState            bool
+	PrintPrefix           string
+	InContainer           bool
+	RTASourcePT           bool
+	SensorIPCEndpoint     string
+	SensorIPCMode         string
+	TargetHost            string
+
+	dockerEventCh     chan *dockerapi.APIEvents
+	dockerEventStopCh chan struct{}
+	isDone            aflag.Type
+	ipcClient         *ipc.Client
+	logger            *log.Entry
+	xc                *app.ExecutionContext
+	crOpts            *config.ContainerRunOptions
+	portBindings      map[dockerapi.Port][]dockerapi.PortBinding
 }
 
 func pathMapKeys(m map[string]*fsutil.AccessInfo) []string {
@@ -181,20 +158,9 @@ func NewInspector(
 	statePath string,
 	imageInspector *image.Inspector,
 	localVolumePath string,
+	fileMatcherCfg *config.FileMatcherConfig,
 	doUseLocalMounts bool,
-	doIncludeAppNuxtDir bool,
-	doIncludeAppNuxtBuildDir bool,
-	doIncludeAppNuxtDistDir bool,
-	doIncludeAppNuxtStaticDir bool,
-	doIncludeAppNuxtNodeModulesDir bool,
-	doIncludeAppNextDir bool,
-	doIncludeAppNextBuildDir bool,
-	doIncludeAppNextDistDir bool,
-	doIncludeAppNextStaticDir bool,
-	doIncludeAppNextNodeModulesDir bool,
-	includeNodePackages []string,
 	sensorVolumeName string,
-	doKeepTmpArtifacts bool,
 	overrides *config.ContainerOverrides,
 	explicitVolumeMounts map[string]config.VolumeMount,
 	baseMounts []dockerapi.HostMount,
@@ -209,19 +175,6 @@ func NewInspector(
 	runTargetAsUser bool,
 	showContainerLogs bool,
 	keepPerms bool,
-	pathPerms map[string]*fsutil.AccessInfo,
-	excludePatterns map[string]*fsutil.AccessInfo,
-	preservePaths map[string]*fsutil.AccessInfo,
-	includePaths map[string]*fsutil.AccessInfo,
-	includeBins map[string]*fsutil.AccessInfo,
-	includeExes map[string]*fsutil.AccessInfo,
-	doIncludeShell bool,
-	doIncludeCertAll bool,
-	doIncludeCertBundles bool,
-	doIncludeCertDirs bool,
-	doIncludeCertPKAll bool,
-	doIncludeCertPKDirs bool,
-	doIncludeNew bool,
 	selectedNetworks map[string]NetNameInfo,
 	//serviceAliases []string,
 	doDebug bool,
@@ -236,66 +189,41 @@ func NewInspector(
 
 	logger = logger.WithFields(log.Fields{"component": "container.inspector"})
 	inspector := &Inspector{
-		logger:                         logger,
-		StatePath:                      statePath,
-		LocalVolumePath:                localVolumePath,
-		DoUseLocalMounts:               doUseLocalMounts,
-		DoIncludeAppNuxtDir:            doIncludeAppNuxtDir,
-		DoIncludeAppNuxtBuildDir:       doIncludeAppNuxtBuildDir,
-		DoIncludeAppNuxtDistDir:        doIncludeAppNuxtDistDir,
-		DoIncludeAppNuxtStaticDir:      doIncludeAppNuxtStaticDir,
-		DoIncludeAppNuxtNodeModulesDir: doIncludeAppNuxtNodeModulesDir,
-		DoIncludeAppNextDir:            doIncludeAppNextDir,
-		DoIncludeAppNextBuildDir:       doIncludeAppNextBuildDir,
-		DoIncludeAppNextDistDir:        doIncludeAppNextDistDir,
-		DoIncludeAppNextStaticDir:      doIncludeAppNextStaticDir,
-		DoIncludeAppNextNodeModulesDir: doIncludeAppNextNodeModulesDir,
-		IncludeNodePackages:            includeNodePackages,
-		SensorVolumeName:               sensorVolumeName,
-		DoKeepTmpArtifacts:             doKeepTmpArtifacts,
-		CmdPort:                        cmdPortSpecDefault,
-		EvtPort:                        evtPortSpecDefault,
-		ImageInspector:                 imageInspector,
-		APIClient:                      client,
-		Overrides:                      overrides,
-		ExplicitVolumeMounts:           explicitVolumeMounts,
-		BaseMounts:                     baseMounts,
-		BaseVolumesFrom:                baseVolumesFrom,
-		DoPublishExposedPorts:          doPublishExposedPorts,
-		HasClassicLinks:                hasClassicLinks,
-		Links:                          links,
-		EtcHostsMaps:                   etcHostsMaps,
-		DNSServers:                     dnsServers,
-		DNSSearchDomains:               dnsSearchDomains,
-		DoShowContainerLogs:            showContainerLogs,
-		RunTargetAsUser:                runTargetAsUser,
-		KeepPerms:                      keepPerms,
-		PathPerms:                      pathPerms,
-		ExcludePatterns:                excludePatterns,
-		PreservePaths:                  preservePaths,
-		IncludePaths:                   includePaths,
-		IncludeBins:                    includeBins,
-		IncludeExes:                    includeExes,
-		DoIncludeShell:                 doIncludeShell,
-		DoIncludeCertAll:               doIncludeCertAll,
-		DoIncludeCertBundles:           doIncludeCertBundles,
-		DoIncludeCertDirs:              doIncludeCertDirs,
-		DoIncludeCertPKAll:             doIncludeCertPKAll,
-		DoIncludeCertPKDirs:            doIncludeCertPKDirs,
-		DoIncludeNew:                   doIncludeNew,
-		SelectedNetworks:               selectedNetworks,
-		DoDebug:                        doDebug,
-		LogLevel:                       logLevel,
-		LogFormat:                      logFormat,
-		PrintState:                     printState,
-		PrintPrefix:                    printPrefix,
-		InContainer:                    inContainer,
-		RTASourcePT:                    rtaSourcePT,
-		SensorIPCEndpoint:              sensorIPCEndpoint,
-		SensorIPCMode:                  sensorIPCMode,
-		xc:                             xc,
-		crOpts:                         crOpts,
-		portBindings:                   portBindings,
+		logger:                logger,
+		StatePath:             statePath,
+		FileMatcherConfig:     fileMatcherCfg,
+		LocalVolumePath:       localVolumePath,
+		SensorVolumeName:      sensorVolumeName,
+		CmdPort:               cmdPortSpecDefault,
+		EvtPort:               evtPortSpecDefault,
+		ImageInspector:        imageInspector,
+		APIClient:             client,
+		Overrides:             overrides,
+		ExplicitVolumeMounts:  explicitVolumeMounts,
+		BaseMounts:            baseMounts,
+		BaseVolumesFrom:       baseVolumesFrom,
+		DoPublishExposedPorts: doPublishExposedPorts,
+		HasClassicLinks:       hasClassicLinks,
+		Links:                 links,
+		EtcHostsMaps:          etcHostsMaps,
+		DNSServers:            dnsServers,
+		DNSSearchDomains:      dnsSearchDomains,
+		DoShowContainerLogs:   showContainerLogs,
+		RunTargetAsUser:       runTargetAsUser,
+		KeepPerms:             keepPerms,
+		SelectedNetworks:      selectedNetworks,
+		DoDebug:               doDebug,
+		LogLevel:              logLevel,
+		LogFormat:             logFormat,
+		PrintState:            printState,
+		PrintPrefix:           printPrefix,
+		InContainer:           inContainer,
+		RTASourcePT:           rtaSourcePT,
+		SensorIPCEndpoint:     sensorIPCEndpoint,
+		SensorIPCMode:         sensorIPCMode,
+		xc:                    xc,
+		crOpts:                crOpts,
+		portBindings:          portBindings,
 	}
 
 	if overrides == nil {
@@ -492,64 +420,12 @@ func (i *Inspector) RunContainer() error {
 		allMountsMap[mkey] = vm
 	}
 
-	var err error
-	var volumeName string
-	if !i.DoUseLocalMounts {
-		volumeName, err = ensureSensorVolume(i.logger, i.APIClient, sensorPath, i.SensorVolumeName)
-		errutil.FailOn(err)
+	dslimMounts, err := i.setupDockerSlimVolumes(sensorPath, artifactsPath)
+	errutil.FailOn(err)
+
+	for key, val := range dslimMounts {
+		allMountsMap[key] = val
 	}
-
-	//var artifactsMountInfo string
-	if i.DoUseLocalMounts {
-		//"%s:/opt/dockerslim/artifacts"
-		//artifactsMountInfo = fmt.Sprintf(ArtifactsMountPat, artifactsPath)
-		//volumeBinds = append(volumeBinds, artifactsMountInfo)
-		vm := dockerapi.HostMount{
-			Type:   "bind",
-			Source: artifactsPath,
-			Target: "/opt/dockerslim/artifacts",
-		}
-
-		mkey := fmt.Sprintf("%s:%s:%s", vm.Type, vm.Source, vm.Target)
-		allMountsMap[mkey] = vm
-	} else {
-		//artifactsMountInfo = ArtifactsVolumePath
-		//configVolumes[artifactsMountInfo] = struct{}{}
-		vm := dockerapi.HostMount{
-			Type:   "volume",
-			Target: ArtifactsVolumePath,
-		}
-
-		mkey := fmt.Sprintf("%s:%s:%s", vm.Type, vm.Source, vm.Target)
-		allMountsMap[mkey] = vm
-	}
-
-	//var sensorMountInfo string
-	if i.DoUseLocalMounts {
-		//sensorMountInfo = fmt.Sprintf(SensorMountPat, sensorPath)
-		vm := dockerapi.HostMount{
-			Type:     "bind",
-			Source:   sensorPath,
-			Target:   "/opt/dockerslim/bin/docker-slim-sensor",
-			ReadOnly: true,
-		}
-
-		mkey := fmt.Sprintf("%s:%s:%s", vm.Type, vm.Source, vm.Target)
-		allMountsMap[mkey] = vm
-	} else {
-		//sensorMountInfo = fmt.Sprintf(VolumeSensorMountPat, volumeName)
-		vm := dockerapi.HostMount{
-			Type:     "volume",
-			Source:   volumeName,
-			Target:   "/opt/dockerslim/bin",
-			ReadOnly: true,
-		}
-
-		mkey := fmt.Sprintf("%s:%s:%s", vm.Type, vm.Source, vm.Target)
-		allMountsMap[mkey] = vm
-	}
-
-	//volumeBinds = append(volumeBinds, sensorMountInfo)
 
 	var containerCmd []string
 	if i.DoDebug {
@@ -829,39 +705,9 @@ func (i *Inspector) RunContainer() error {
 		cmd.AppArgs = i.FatContainerCmd[1:]
 	}
 
-	if len(i.ExcludePatterns) > 0 {
-		cmd.Excludes = pathMapKeys(i.ExcludePatterns)
-	}
-
-	if len(i.PreservePaths) > 0 {
-		cmd.Preserves = i.PreservePaths
-	}
-
-	if len(i.IncludePaths) > 0 {
-		cmd.Includes = i.IncludePaths
-	}
+	cmd.FileMatcherConfig = i.FileMatcherConfig
 
 	cmd.KeepPerms = i.KeepPerms
-
-	if len(i.PathPerms) > 0 {
-		cmd.Perms = i.PathPerms
-	}
-
-	if len(i.IncludeBins) > 0 {
-		cmd.IncludeBins = pathMapKeys(i.IncludeBins)
-	}
-
-	if len(i.IncludeExes) > 0 {
-		cmd.IncludeExes = pathMapKeys(i.IncludeExes)
-	}
-
-	cmd.IncludeShell = i.DoIncludeShell
-	cmd.IncludeCertAll = i.DoIncludeCertAll
-	cmd.IncludeCertBundles = i.DoIncludeCertBundles
-	cmd.IncludeCertDirs = i.DoIncludeCertDirs
-	cmd.IncludeCertPKAll = i.DoIncludeCertPKAll
-	cmd.IncludeCertPKDirs = i.DoIncludeCertPKDirs
-	cmd.IncludeNew = i.DoIncludeNew
 
 	if runAsUser != "" {
 		cmd.AppUser = runAsUser
@@ -870,20 +716,6 @@ func (i *Inspector) RunContainer() error {
 			cmd.RunTargetAsUser = i.RunTargetAsUser
 		}
 	}
-
-	cmd.IncludeAppNuxtDir = i.DoIncludeAppNuxtDir
-	cmd.IncludeAppNuxtBuildDir = i.DoIncludeAppNuxtBuildDir
-	cmd.IncludeAppNuxtDistDir = i.DoIncludeAppNuxtDistDir
-	cmd.IncludeAppNuxtStaticDir = i.DoIncludeAppNuxtStaticDir
-	cmd.IncludeAppNuxtNodeModulesDir = i.DoIncludeAppNuxtNodeModulesDir
-
-	cmd.IncludeAppNextDir = i.DoIncludeAppNextDir
-	cmd.IncludeAppNextBuildDir = i.DoIncludeAppNextBuildDir
-	cmd.IncludeAppNextDistDir = i.DoIncludeAppNextDistDir
-	cmd.IncludeAppNextStaticDir = i.DoIncludeAppNextStaticDir
-	cmd.IncludeAppNextNodeModulesDir = i.DoIncludeAppNextNodeModulesDir
-
-	cmd.IncludeNodePackages = i.IncludeNodePackages
 
 	_, err = i.ipcClient.SendCommand(cmd)
 	if err != nil {
@@ -1192,7 +1024,7 @@ func (i *Inspector) ShutdownContainer() error {
 	i.isDone.On()
 	if !i.DoUseLocalMounts {
 		deleteOrig := true
-		if i.DoKeepTmpArtifacts {
+		if i.FileMatcherConfig.KeepTmpArtifacts {
 			deleteOrig = false
 		}
 
@@ -1415,6 +1247,66 @@ func (i *Inspector) ProcessCollectedData() error {
 }
 
 /////////////////////////////////////////////////////////////////////////////////
+
+const (
+	volMount  = "volume"
+	bindMount = "bind"
+
+	dslimArtifactsPath = "/opt/dockerslim/artifacts"
+	dslimSensorDir     = "/opt/dockerslim/bin"
+)
+
+func (i *Inspector) setupDockerSlimVolumes(sensorPath, artifactsPath string) (map[string]dockerapi.HostMount, error) {
+	mountsMap := map[string]dockerapi.HostMount{}
+
+	if i.DoUseLocalMounts {
+		avm := dockerapi.HostMount{
+			Type:   bindMount,
+			Source: artifactsPath,
+			Target: dslimArtifactsPath,
+		}
+
+		amkey := fmt.Sprintf("%s:%s:%s", avm.Type, avm.Source, avm.Target)
+		mountsMap[amkey] = avm
+
+		svm := dockerapi.HostMount{
+			Type:     bindMount,
+			Source:   sensorPath,
+			Target:   dslimSensorDir + "/docker-slim-sensor",
+			ReadOnly: true,
+		}
+
+		smkey := fmt.Sprintf("%s:%s:%s", svm.Type, svm.Source, svm.Target)
+		mountsMap[smkey] = svm
+
+		return mountsMap, nil
+	}
+
+	avm := dockerapi.HostMount{
+		Type:   volMount,
+		Target: dslimArtifactsPath,
+	}
+
+	amkey := fmt.Sprintf("%s:%s:%s", avm.Type, avm.Source, avm.Target)
+	mountsMap[amkey] = avm
+
+	volumeName, err := ensureSensorVolume(i.logger, i.APIClient, sensorPath, i.SensorVolumeName)
+	if err != nil {
+		return nil, err
+	}
+
+	svm := dockerapi.HostMount{
+		Type:     volMount,
+		Source:   volumeName,
+		Target:   dslimSensorDir,
+		ReadOnly: true,
+	}
+
+	smkey := fmt.Sprintf("%s:%s:%s", svm.Type, svm.Source, svm.Target)
+	mountsMap[smkey] = svm
+
+	return mountsMap, nil
+}
 
 func sensorVolumeName() string {
 	return fmt.Sprintf("%s.%s", sensorVolumeBaseName, v.Tag())

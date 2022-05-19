@@ -73,12 +73,12 @@ func startMonitor(errorCh chan error,
 	ptmonStartChan chan int,
 	cmd *command.StartMonitor,
 	dirName string) bool {
+
 	origPaths, err := getCurrentPaths("/")
 	if err != nil {
 		errorCh <- err
 		time.Sleep(3 * time.Second) //give error event time to get sent
 	}
-
 	errutil.FailOn(err)
 
 	log.Info("sensor: monitor starting...")
@@ -97,9 +97,9 @@ func startMonitor(errorCh chan error,
 		//ProcEvents are not enabled in the default boot2docker kernel
 	}
 
-	prepareEnv(defaultArtifactDirName, cmd)
+	prepareEnv(cmd, dirName, defaultArtifactDirName)
 
-	fanReportChan := fanotify.Run(errorCh, mountPoint, stopMonitor, cmd.IncludeNew, origPaths) //data.AppName, data.AppArgs
+	fanReportChan := fanotify.Run(errorCh, mountPoint, stopMonitor, cmd.FileMatcherConfig.IncludeNew, origPaths) //data.AppName, data.AppArgs
 	if fanReportChan == nil {
 		log.Info("sensor: startMonitor - FAN failed to start running...")
 		return false
@@ -115,7 +115,7 @@ func startMonitor(errorCh chan error,
 		dirName,
 		cmd.AppUser,
 		cmd.RunTargetAsUser,
-		cmd.IncludeNew,
+		cmd.FileMatcherConfig.IncludeNew,
 		origPaths)
 	if ptReportChan == nil {
 		log.Info("sensor: startMonitor - PTAN failed to start running...")
@@ -171,6 +171,8 @@ func Run() {
 	errutil.FailOn(err)
 
 	activeCaps, maxCaps, err := sysenv.Capabilities(0)
+	errutil.FailOn(err)
+
 	log.Debugf("sensor: uid=%v euid=%v", os.Getuid(), os.Geteuid())
 	log.Debugf("sensor: privileged => %v", sysenv.IsPrivileged())
 	log.Debugf("sensor: active capabilities => %#v", activeCaps)
@@ -211,7 +213,7 @@ func Run() {
 				return
 			case err := <-errorCh:
 				log.Infof("sensor: error collector - forwarding error = %+v", err)
-				ipcServer.TryPublishEvt(&event.Message{Name: event.Error, Data: err}, 3)
+				_ = ipcServer.TryPublishEvt(&event.Message{Name: event.Error, Data: err}, 3)
 			}
 		}
 	}()
@@ -244,7 +246,7 @@ doneRunning:
 				if !started {
 					log.Info("sensor: monitor not started...")
 					time.Sleep(3 * time.Second) //give error event time to get sent
-					ipcServer.TryPublishEvt(&event.Message{Name: event.StartMonitorFailed}, 3)
+					_ = ipcServer.TryPublishEvt(&event.Message{Name: event.StartMonitorFailed}, 3)
 					break
 				}
 
@@ -261,7 +263,7 @@ doneRunning:
 					msg.Name = event.StartMonitorFailed
 				}
 
-				ipcServer.TryPublishEvt(msg, 3)
+				_ = ipcServer.TryPublishEvt(msg, 3)
 
 			case *command.StopMonitor:
 				log.Info("sensor: 'stop' monitor command")
@@ -270,7 +272,7 @@ doneRunning:
 				log.Info("sensor: waiting for monitor to finish...")
 				<-monDoneAckChan
 				log.Info("sensor: monitor stopped...")
-				ipcServer.TryPublishEvt(&event.Message{Name: event.StopMonitorDone}, 3)
+				_ = ipcServer.TryPublishEvt(&event.Message{Name: event.StopMonitorDone}, 3)
 
 			case *command.ShutdownSensor:
 				log.Info("sensor: 'shutdown' command")
@@ -286,6 +288,6 @@ doneRunning:
 		}
 	}
 
-	ipcServer.TryPublishEvt(&event.Message{Name: event.ShutdownSensorDone}, 3)
+	_ = ipcServer.TryPublishEvt(&event.Message{Name: event.ShutdownSensorDone}, 3)
 	log.Info("sensor: done!")
 }

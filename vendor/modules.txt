@@ -29,6 +29,8 @@ github.com/Microsoft/hcsshim/internal/winapi
 github.com/Microsoft/hcsshim/osversion
 # github.com/PuerkitoBio/goquery v1.5.1
 github.com/PuerkitoBio/goquery
+# github.com/acomagu/bufpipe v1.0.3
+github.com/acomagu/bufpipe
 # github.com/andybalholm/cascadia v1.2.0
 github.com/andybalholm/cascadia
 # github.com/antchfx/htmlquery v1.2.3
@@ -67,6 +69,8 @@ github.com/containerd/stargz-snapshotter/estargz
 github.com/containerd/stargz-snapshotter/estargz/errorutil
 # github.com/cpuguy83/go-md2man/v2 v2.0.1
 github.com/cpuguy83/go-md2man/v2/md2man
+# github.com/davecgh/go-spew v1.1.1
+github.com/davecgh/go-spew/spew
 # github.com/distribution/distribution/v3 v3.0.0-20210316161203-a01c71e2477e
 github.com/distribution/distribution/v3/digestset
 github.com/distribution/distribution/v3/reference
@@ -147,6 +151,17 @@ github.com/getkin/kin-openapi/openapi2conv
 github.com/getkin/kin-openapi/openapi3
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
+# github.com/go-git/gcfg v1.5.0
+github.com/go-git/gcfg
+github.com/go-git/gcfg/scanner
+github.com/go-git/gcfg/token
+github.com/go-git/gcfg/types
+# github.com/go-git/go-billy/v5 v5.3.1
+github.com/go-git/go-billy/v5
+# github.com/go-git/go-git/v5 v5.4.2
+github.com/go-git/go-git/v5/plumbing/format/config
+github.com/go-git/go-git/v5/plumbing/format/gitignore
+github.com/go-git/go-git/v5/utils/ioutil
 # github.com/gobwas/glob v0.2.3
 github.com/gobwas/glob
 github.com/gobwas/glob/compiler
@@ -206,6 +221,8 @@ github.com/google/shlex
 github.com/gorilla/websocket
 # github.com/imdario/mergo v0.3.12
 github.com/imdario/mergo
+# github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
+github.com/jbenet/go-context/io
 # github.com/kennygrant/sanitize v1.2.4
 github.com/kennygrant/sanitize
 # github.com/klauspost/compress v1.13.6
@@ -252,20 +269,17 @@ github.com/opencontainers/runc/libcontainer/user
 github.com/pkg/errors
 # github.com/pkg/term v0.0.0-20200520122047-c3ffed290a03
 github.com/pkg/term/termios
-# github.com/robertkrimen/otto v0.0.0-20211024170158-b87d35c0b86f
-github.com/robertkrimen/otto
-github.com/robertkrimen/otto/ast
-github.com/robertkrimen/otto/dbg
-github.com/robertkrimen/otto/file
-github.com/robertkrimen/otto/parser
-github.com/robertkrimen/otto/registry
-github.com/robertkrimen/otto/token
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
 # github.com/russross/blackfriday/v2 v2.1.0
 github.com/russross/blackfriday/v2
 # github.com/saintfish/chardet v0.0.0-20120816061221-3af4cd4741ca
 github.com/saintfish/chardet
 # github.com/sirupsen/logrus v1.8.1
 github.com/sirupsen/logrus
+# github.com/stretchr/testify v1.7.1
+github.com/stretchr/testify/assert
+github.com/stretchr/testify/require
 # github.com/syndtr/gocapability v0.0.0-20200815063812-42c35b437635
 github.com/syndtr/gocapability/capability
 # github.com/temoto/robotstxt v1.1.1
@@ -371,8 +385,9 @@ google.golang.org/protobuf/types/descriptorpb
 google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/timestamppb
-# gopkg.in/sourcemap.v1 v1.0.5
-gopkg.in/sourcemap.v1
-gopkg.in/sourcemap.v1/base64vlq
+# gopkg.in/warnings.v0 v0.1.2
+gopkg.in/warnings.v0
 # gopkg.in/yaml.v2 v2.4.0
 gopkg.in/yaml.v2
+# gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
+gopkg.in/yaml.v3
