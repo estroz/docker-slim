@@ -148,6 +148,8 @@ const (
 	FlagContainerDNSSearch = "container-dns-search"
 	FlagMount              = "mount"
 	FlagDeleteFatImage     = "delete-generated-fat-image"
+
+	FlagSlimignore = "slimignore"
 )
 
 // Shared command flag usage info
@@ -809,6 +811,12 @@ var CommonFlags = map[string]cli.Flag{
 		Value:   true, //all sources are enabled by default
 		Usage:   FlagRTASourcePTUsage,
 		EnvVars: []string{"DSLIM_RTA_SRC_PT"},
+	},
+
+	FlagSlimignore: &cli.StringFlag{
+		Name: FlagSlimignore,
+		// Usage:   FlagSlimignoreUsage,
+		EnvVars: []string{"DSLIM_SLIMIGNORE"},
 	},
 }
 

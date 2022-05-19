@@ -1,8 +1,6 @@
 package profile
 
 import (
-	"fmt"
-
 	"github.com/docker-slim/docker-slim/pkg/app"
 	"github.com/docker-slim/docker-slim/pkg/app/master/commands"
 
@@ -107,7 +105,7 @@ var CLI = &cli.Command{
 		if targetRef == "" {
 			if ctx.Args().Len() < 1 {
 				xc.Out.Error("param.target", "missing target image ID/name")
-				cli.ShowCommandHelp(ctx, Name)
+				_ = cli.ShowCommandHelp(ctx, Name)
 				return nil
 			} else {
 				targetRef = ctx.Args().First()
@@ -278,55 +276,17 @@ var CLI = &cli.Command{
 			xc.Exit(-1)
 		}
 
-		excludePatterns := commands.ParsePaths(ctx.StringSlice(commands.FlagExcludePattern))
-
-		//includePaths := commands.ParsePaths(ctx.StringSlice(commands.FlagIncludePath))
-		//moreIncludePaths, err := commands.ParsePathsFile(ctx.String(commands.FlagIncludePathFile))
-		//if err != nil {
-		//	xc.Out.Error("param.error.include.path.file", err.Error())
-		//	xc.Out.State("exited",
-		//		ovars{
-		//			"exit.code": -1,
-		//		})
-		//	xc.Exit(-1)
-		//} else {
-		//	for k, v := range moreIncludePaths {
-		//		includePaths[k] = v
-		//	}
-		//}
-
-		//pathPerms := commands.ParsePaths(ctx.StringSlice(commands.FlagPathPerms))
-		//morePathPerms, err := commands.ParsePathsFile(ctx.String(commands.FlagPathPermsFile))
-		//if err != nil {
-		//	xc.Out.Error("param.error.path.perms.file", err.Error())
-		//	xc.Out.State("exited",
-		//		ovars{
-		//			"exit.code": -1,
-		//		})
-		//	xc.Exit(-1)
-		//} else {
-		//	for k, v := range morePathPerms {
-		//		pathPerms[k] = v
-		//	}
-		//}
-
-		//includeBins := commands.ParsePaths(ctx.StringSlice(commands.FlagIncludeBin))
-		//includeExes := commands.ParsePaths(ctx.StringSlice(commands.FlagIncludeExe))
-		//doIncludeShell := ctx.Bool(commands.FlagIncludeShell)
+		fileMatcherCfg, err := GetFileMatcherConfig(ctx, volumeMounts)
+		if err != nil {
+			xc.Out.Error("param.error.filematcherconfig.new", err.Error())
+			xc.Out.State("exited", ovars{
+				"exit.code": -1,
+			})
+			xc.Exit(-1)
+		}
 
 		doUseLocalMounts := ctx.Bool(commands.FlagUseLocalMounts)
 		doUseSensorVolume := ctx.String(commands.FlagUseSensorVolume)
-
-		//doKeepTmpArtifacts := ctx.Bool(commands.FlagKeepTmpArtifacts)
-
-		doExcludeMounts := ctx.Bool(commands.FlagExcludeMounts)
-		if doExcludeMounts {
-			for mpath := range volumeMounts {
-				excludePatterns[mpath] = nil
-				mpattern := fmt.Sprintf("%s/**", mpath)
-				excludePatterns[mpattern] = nil
-			}
-		}
 
 		continueAfter, err := commands.GetContinueAfter(ctx)
 		if err != nil {
@@ -356,6 +316,7 @@ var CLI = &cli.Command{
 			gcvalues,
 			targetRef,
 			doPull,
+			fileMatcherCfg,
 			dockerConfigPath,
 			registryAccount,
 			registrySecret,
@@ -388,16 +349,8 @@ var CLI = &cli.Command{
 			ctx.StringSlice(commands.FlagContainerDNS),
 			ctx.StringSlice(commands.FlagContainerDNSSearch),
 			volumeMounts,
-			//doKeepPerms,
-			//pathPerms,
-			excludePatterns,
-			//includePaths,
-			//includeBins,
-			//includeExes,
-			//doIncludeShell,
 			doUseLocalMounts,
 			doUseSensorVolume,
-			//doKeepTmpArtifacts,
 			continueAfter,
 			ctx.String(commands.FlagSensorIPCEndpoint),
 			ctx.String(commands.FlagSensorIPCMode),

@@ -99,7 +99,7 @@ func startMonitor(errorCh chan error,
 
 	prepareEnv(defaultArtifactDirName, cmd)
 
-	fanReportChan := fanotify.Run(errorCh, mountPoint, stopMonitor, cmd.IncludeNew, origPaths) //data.AppName, data.AppArgs
+	fanReportChan := fanotify.Run(errorCh, mountPoint, stopMonitor, cmd.FileMatcherConfig.IncludeNew, origPaths) //data.AppName, data.AppArgs
 	if fanReportChan == nil {
 		log.Info("sensor: startMonitor - FAN failed to start running...")
 		return false
@@ -115,7 +115,7 @@ func startMonitor(errorCh chan error,
 		dirName,
 		cmd.AppUser,
 		cmd.RunTargetAsUser,
-		cmd.IncludeNew,
+		cmd.FileMatcherConfig.IncludeNew,
 		origPaths)
 	if ptReportChan == nil {
 		log.Info("sensor: startMonitor - PTAN failed to start running...")

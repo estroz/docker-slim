@@ -30,7 +30,7 @@ const appName = commands.AppName
 
 // Profile command exit codes
 const (
-	ecpOther = iota + 1
+	_ = iota + 1
 	ecpNoEntrypoint
 	ecpImageNotFound
 )
@@ -46,6 +46,7 @@ func OnCommand(
 	gparams *commands.GenericParams,
 	targetRef string,
 	doPull bool,
+	fileMatcherCfg *config.FileMatcherConfig,
 	dockerConfigPath string,
 	registryAccount string,
 	registrySecret string,
@@ -79,15 +80,8 @@ func OnCommand(
 	dnsSearchDomains []string,
 	explicitVolumeMounts map[string]config.VolumeMount,
 	//doKeepPerms bool,
-	//pathPerms map[string]*fsutil.AccessInfo,
-	excludePatterns map[string]*fsutil.AccessInfo,
-	//includePaths map[string]*fsutil.AccessInfo,
-	//includeBins map[string]*fsutil.AccessInfo,
-	//includeExes map[string]*fsutil.AccessInfo,
-	//doIncludeShell bool,
 	doUseLocalMounts bool,
 	doUseSensorVolume string,
-	//doKeepTmpArtifacts bool,
 	continueAfter *config.ContinueAfter,
 	sensorIPCEndpoint string,
 	sensorIPCMode string,
@@ -239,20 +233,9 @@ func OnCommand(
 		statePath,
 		imageInspector,
 		localVolumePath,
+		fileMatcherCfg,
 		doUseLocalMounts,
-		false, //doIncludeAppNuxtDir
-		false, //doIncludeAppNuxtBuildDir,
-		false, //doIncludeAppNuxtDistDir,
-		false, //doIncludeAppNuxtStaticDir,
-		false, //doIncludeAppNuxtNodeModulesDir,
-		false, //doIncludeAppNextDir
-		false, //doIncludeAppNextBuildDir,
-		false, //doIncludeAppNextDistDir,
-		false, //doIncludeAppNextStaticDir,
-		false, //doIncludeAppNextNodeModulesDir,
-		nil,   //includeNodePackages,
 		doUseSensorVolume,
-		false, //doKeepTmpArtifacts,
 		overrides,
 		explicitVolumeMounts,
 		nil, //baseMounts,
@@ -267,19 +250,6 @@ func OnCommand(
 		doRunTargetAsUser,
 		doShowContainerLogs,
 		false, //doKeepPerms,
-		nil,   //pathPerms,
-		excludePatterns,
-		nil,   //preservePaths,
-		nil,   //includePaths,
-		nil,   //includeBins,
-		nil,   //includeExes,
-		false, //doIncludeShell,
-		false, //doIncludeCertAll
-		false, //doIncludeCertBundles
-		false, //doIncludeCertDirs
-		false, //doIncludeCertPKAll
-		false, //doIncludeCertPKDirs
-		false, //doIncludeNew
 		nil,   //selectedNetNames
 		//nil,
 		gparams.Debug,
